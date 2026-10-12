@@ -1,0 +1,145 @@
+#include <FastLED.h>
+#include <ESP32Servo.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>
+
+// Definiciija pinova
+#define LED_PIN          13   
+const int servoPin     = 18;  
+const int tipkaloPin   = 14;  
+const int relejPumpaPin = 16;  
+const int ds18b20Pin   = 4;   
+const int relejZaruljaPin = 2; 
+
+// Postavke komponenti
+#define NUM_LEDS       30    
+#define LED_TYPE       WS2812B
+#define COLOR_ORDER    GRB
+CRGB leds[NUM_LEDS];
+
+Servo hranilica;
+OneWire oneWire(ds18b20Pin);
+DallasTemperature senzor(&oneWire);
+
+// Varijable i intervali
+bool pumpaRadi = false;       
+int zadnjeStanjeTipkala = HIGH; 
+
+unsigned long zadnjeHranjenje = 0;
+const long intervalHranjenja = 30000; 
+
+const unsigned long trajanjeCiklusa = 300000; 
+
+const float ZELJENA_TEMP = 28; 
+unsigned long zadnjeOcitanjeTemp = 0;
+const long intervalTemp = 3000; 
+
+int zadnjeStanjeZarulje = HIGH; 
+
+void setup() {
+  Serial.begin(115200);
+  Serial.println("===============================================");
+  Serial.println("=== KONAČNI SUSTAV PAMETNOG AKVARIJA POKRENUT ===");
+  Serial.println("===============================================");
+
+  // Inicijalizacija LED trake
+  FastLED.addLeds<LED_TYPE, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
+  FastLED.clear();
+  FastLED.show();
+
+  // Inicijalizacija serva
+  hranilica.attach(servoPin);
+  hranilica.write(0); 
+
+  // Inicijalizacija senzora temperature
+  senzor.begin();
+
+  // Inicijalizacija releja
+  pinMode(relejPumpaPin, OUTPUT);
+  digitalWrite(relejPumpaPin, HIGH); 
+  
+  pinMode(relejZaruljaPin, OUTPUT);
+  digitalWrite(relejZaruljaPin, HIGH); 
+
+  // Inicijalizacija tipkala
+  pinMode(tipkaloPin, INPUT_PULLUP);
+}
+
+void loop() {
+  unsigned long trenutnoVrijeme = millis();
+
+  // Simulacija sunčevog ciklusa (LED traka)
+  unsigned long vrijemeUCiklusu = trenutnoVrijeme % trajanjeCiklusa;
+  int svjetlina = 0;
+
+  if (vrijemeUCiklusu < trajanjeCiklusa / 2) {
+    svjetlina = map(vrijemeUCiklusu, 0, trajanjeCiklusa / 2, 0, 255); 
+  } else {
+    svjetlina = map(vrijemeUCiklusu, trajanjeCiklusa / 2, trajanjeCiklusa, 255, 0); 
+  }
+
+  FastLED.setBrightness(svjetlina);
+  for(int i = 0; i < NUM_LEDS; i++) {
+    leds[i] = CRGB(0, 150, 150); 
+  }
+  FastLED.show();
+
+
+  // Kontrola pumpe preko tipkala
+  int trenutnoStanjeTipkala = digitalRead(tipkaloPin);
+
+  if (zadnjeStanjeTipkala == HIGH && trenutnoStanjeTipkala == LOW) {
+    delay(150); 
+    if (digitalRead(tipkaloPin) == LOW) {
+      pumpaRadi = !pumpaRadi; 
+      
+      if (pumpaRadi) {
+        Serial.println("[PUMPA] Ugašena ručno na tipkalo.");
+        digitalWrite(relejPumpaPin, LOW); 
+      } else {
+        Serial.println("[PUMPA] Upaljena ručno na tipkalo.");
+        digitalWrite(relejPumpaPin, HIGH); 
+      }
+      delay(300); 
+    }
+  }
+  zadnjeStanjeTipkala = trenutnoStanjeTipkala;
+
+
+  // Automatsko hranjenje
+  if (trenutnoVrijeme - zadnjeHranjenje >= intervalHranjenja) {
+    zadnjeHranjenje = trenutnoVrijeme; 
+    Serial.println("[HRANILICA] Vrijeme je za hranjenje!");
+    hranilica.write(90); 
+    delay(500);          
+    hranilica.write(0);  
+  }
+
+
+  // Regulacija temperature
+  if (trenutnoVrijeme - zadnjeOcitanjeTemp >= intervalTemp) {
+    zadnjeOcitanjeTemp = trenutnoVrijeme;
+    
+    senzor.requestTemperatures(); 
+    float trenutnaTemperatura = senzor.getTempCByIndex(0);
+
+    if (trenutnaTemperatura == -127.00) {
+      Serial.println("[TERMOSTAT] Šum detektiran (-127). Zadržavam staro stanje.");
+      digitalWrite(relejZaruljaPin, zadnjeStanjeZarulje);
+    }
+    else {
+      if (trenutnaTemperatura < ZELJENA_TEMP) {
+        Serial.print("[TERMOSTAT] Temp: "); Serial.print(trenutnaTemperatura);
+        Serial.println(" °C -> Hladno. PALIM H7 žarulju.");
+        zadnjeStanjeZarulje = HIGH; 
+        digitalWrite(relejZaruljaPin, HIGH); 
+      } 
+      else {
+        Serial.print("[TERMOSTAT] Temp: "); Serial.print(trenutnaTemperatura);
+        Serial.println(" °C -> Toplo. GASIM H7 žarulju.");
+        zadnjeStanjeZarulje = LOW; 
+        digitalWrite(relejZaruljaPin, LOW); 
+      }
+    }
+  }
+}

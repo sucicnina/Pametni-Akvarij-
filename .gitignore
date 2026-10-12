@@ -1,0 +1,6 @@
+# Ignoriraj sve osim navedenih datoteka
+*
+!.gitignore
+!README.md
+!KOD.txt
+!URS26 - Idžanović,Sučić.pdf
