@@ -1,8 +1,10 @@
+[🇬🇧 English](README.md) | 🇭🇷 Hrvatski
+
 # 🐠 Pametni akvarij
 
 **Mikroračunalni sustav za upravljanje i regulaciju uvjeta u akvariju** – projekt iz kolegija *Ugradbeni računalni sustavi* (UgRS), FERIT Osijek, 2026.
 
-Autori: Luka Idžanović, Sučić
+Autori: Luka Idžanović, Nina Sučić
 
 Sustav temeljen na mikroračunalu **ESP32** automatski regulira temperaturu vode, simulira dnevni ciklus osvjetljenja, periodički hrani ribe i omogućuje ručno upravljanje crpkom za cirkulaciju vode.
 
@@ -45,6 +47,7 @@ Sustav temeljen na mikroračunalu **ESP32** automatski regulira temperaturu vode
 2. Kroz *Library Manager* instalirati biblioteke: `FastLED`, `ESP32Servo`, `OneWire`, `DallasTemperature`.
 3. Otvoriti [KOD.txt](KOD.txt) (preimenovati u `.ino` ili zalijepiti u novi sketch), odabrati ESP32 ploču i učitati program.
 4. Serijski monitor (115200 baud) prikazuje stanje termostata, hranilice i crpke.
+5. git clone https://github.com/sucicnina/Pametni-Akvarij-.git
 
 ## Videoprezentacija
 
